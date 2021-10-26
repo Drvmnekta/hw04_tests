@@ -34,7 +34,8 @@ class PostPagesTest(TestCase):
             Post(
                 text=f'Тестовый пост {x}',
                 author=cls.user,
-                group=cls.group)
+                group=cls.group,
+                pk=x)
             for x in range(13)
         ])
 
