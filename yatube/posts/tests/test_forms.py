@@ -88,7 +88,10 @@ class PostCreateFormTests(TestCase):
             follow=True
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertRedirects(response, '/auth/login/?next=/create/')
+        reverse_login = reverse('users:login')
+        reverse_create = reverse('posts:post_create')
+        self.assertRedirects(
+            response, f'{reverse_login}?next={reverse_create}')
 
     def test_guest_client_cant_edit_post(self):
         form_data = {
