@@ -1,6 +1,9 @@
+from http import HTTPStatus
+
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.test.testcases import TestCase
+
 from posts.models import Group, Post
 
 User = get_user_model()
@@ -37,12 +40,12 @@ class StaticURLTests(TestCase):
         for adress in common_pages:
             with self.subTest(adress=adress):
                 response = self.guest_client.get(adress)
-                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_post_create_avaliable_for_authentificated(self):
         """Страница создания поста доступна авторизованному"""
         response = self.authorized_client_author.get('/create/')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_post_create_unavaliable_for_guest(self):
         """Страница создания поста недоступна анонимному"""
@@ -53,7 +56,7 @@ class StaticURLTests(TestCase):
         """Страница редактирования поста доступна автору"""
         response = self.authorized_client_author.get(
             f'/posts/{self.post.pk}/edit/')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_post_edit_unavaliable_for_nonauthor(self):
         """Страница редактирования редиректит не автора на страницу поста"""
@@ -66,7 +69,7 @@ class StaticURLTests(TestCase):
     def test_unexisting_page_404(self):
         """Несуществующая страница возвращает 404"""
         response = self.guest_client.get('unexisting_page/')
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_urls_uses_correct_template(self):
         """Адреса используют корректные шаблоны"""

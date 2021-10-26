@@ -1,9 +1,12 @@
+import datetime as dt
+from http import HTTPStatus
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-from posts.models import Group, Post
 
+from posts.models import Group, Post
 from yatube.settings import PAGINATION_NUM
 
 User = get_user_model()
@@ -27,13 +30,22 @@ class PostPagesTest(TestCase):
             title='Тестовая группа',
             slug='test_slug'
         )
-        cls.posts = []
-        for i in range(PAGINATION_NUM + 3):
-            cls.posts.append(Post.objects.create(
-                text=f'Тестовый пост {i}',
+        cls.posts = Post.objects.bulk_create([
+            Post(
+                text=f'Тестовый пост {x}',
                 author=cls.user,
-                group=cls.group
-            ))
+                group=cls.group)
+            for x in range(13)
+        ])
+
+    def chek_context(self, response, user, group, num):
+        for i in range(num):
+            for j in range(num - 1, 0):
+                cur_obj = response.context['page_obj'][i]
+                self.assertEqual(cur_obj.text, f'Тестовый пост {j}')
+                self.assertEqual(cur_obj.author, user)
+                self.assertEqual(cur_obj.group, group)
+                self.assertEqual(cur_obj.pub_date, dt.date.today())
 
     def test_pages_uses_correct_templates(self):
         """Адреса используют соответствующие шаблоны"""
@@ -50,35 +62,41 @@ class PostPagesTest(TestCase):
         for template, reverse_name in templates_pages.items():
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_client.get(reverse_name)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
                 self.assertTemplateUsed(response, template)
 
     def test_index_first_page_contains_ten_records(self):
         """Первая страница паджинатора на главной странице"""
         response = self.authorized_client.get(reverse('posts:index'))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self. assertEqual(len(response.context['page_obj']), PAGINATION_NUM)
 
     def test_index_second_page_contains_three_records(self):
         """Вторая страница паджинатора на главной странице"""
         response = self.authorized_client.get(reverse(
             'posts:index') + '?page=2')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self. assertEqual(len(response.context['page_obj']), 3)
 
     def test_group_paginator_first_page(self):
         """Первая страница паджинатора на странице группы"""
         response = self.authorized_client.get(reverse(
             'posts:group_list', kwargs={'slug': self.group.slug}))
-        self. assertEqual(len(response.context['page_obj']), PAGINATION_NUM)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(len(response.context['page_obj']), PAGINATION_NUM)
 
     def test_group_paginator_second_page(self):
         """Вторая страница паджинатора на странице группы"""
         response = self.authorized_client.get(reverse(
             'posts:group_list', kwargs={'slug': self.group.slug}) + '?page=2')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self. assertEqual(len(response.context['page_obj']), 3)
 
     def test_profile_paginator_first_page(self):
         """Первая страница паджинатора на странице пользователя"""
         response = self.authorized_client.get(reverse(
             'posts:profile', kwargs={'username': self.user.username}))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self. assertEqual(len(response.context['page_obj']), PAGINATION_NUM)
 
     def test_profile_paginator_second_page(self):
@@ -86,47 +104,34 @@ class PostPagesTest(TestCase):
         response = self.authorized_client.get(reverse(
             'posts:profile',
             kwargs={'username': self.user.username}) + '?page=2')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self. assertEqual(len(response.context['page_obj']), 3)
 
     def test_index_show_correct_context(self):
         """Корректные посты на главной странице"""
         response = self.authorized_client.get(reverse('posts:index'))
-        for i in range(0, 13):
-            for j in range(12, 0):
-                cur_obj = response.context['page_obj'][i]
-                post_text = cur_obj.text
-                post_author = cur_obj.author
-                self.assertEqual(post_text, f'Тестовый пост {j}')
-                self.assertEqual(post_author, self.user)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.chek_context(response, self.user, self.group, 13)
 
     def test_group_show_correct_context(self):
         """Корректные посты на странице группы"""
         response = self.authorized_client.get(reverse(
             'posts:group_list', kwargs={'slug': self.group.slug}))
-        for i in range(0, 13):
-            for j in range(12, 0):
-                cur_obj = response.context['page_obj'][i]
-                post_text = cur_obj.text
-                post_author = cur_obj.author
-                self.assertEqual(post_text, f'Тестовый пост {j}')
-                self.assertEqual(post_author, self.user)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.chek_context(response, self.user, self.group, 13)
 
     def test_profile_show_correct_context(self):
         """Корректные посты на странице пользователя"""
         response = self.authorized_client.get(reverse(
             'posts:profile', kwargs={'username': self.user.username}))
-        for i in range(0, 13):
-            for j in range(12, 0):
-                cur_obj = response.context['page_obj'][i]
-                post_text = cur_obj.text
-                post_author = cur_obj.author
-                self.assertEqual(post_text, f'Тестовый пост {j}')
-                self.assertEqual(post_author, self.user)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.chek_context(response, self.user, self.group, 13)
 
     def test_group_page_show_correct_group(self):
         """Корректная группа передается в шаблон"""
         response = self.authorized_client.get(reverse(
             'posts:group_list', kwargs={'slug': self.group.slug}))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         cur_group = response.context['group']
         self.assertEqual(self.group, cur_group)
 
@@ -134,12 +139,14 @@ class PostPagesTest(TestCase):
         """Корректный пользователь передается в шаблон"""
         response = self.authorized_client.get(reverse(
             'posts:profile', kwargs={'username': self.user.username}))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         cur_user = response.context['author']
         self.assertEqual(self.user, cur_user)
 
     def test_create_form_is_correct(self):
         """Поля формы на странице создания поста корректного типа"""
         response = self.authorized_client.get(reverse('posts:post_create'))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField
@@ -153,6 +160,7 @@ class PostPagesTest(TestCase):
         """Поля формы на странице редактирования поста корректного типа"""
         response = self.authorized_client.get(reverse(
             'posts:post_edit', kwargs={'post_id': self.posts[0].pk}))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField
@@ -165,6 +173,7 @@ class PostPagesTest(TestCase):
     def test_create_form_suggests_correct_groups(self):
         """При создании поста форма предлагает корректные группы"""
         response = self.authorized_client.get(reverse('posts:post_create'))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         cur_groups = list(response.context['groups'])
         self.assertEqual(cur_groups, list(Group.objects.all()))
 
@@ -172,6 +181,7 @@ class PostPagesTest(TestCase):
         """Форма для редактирования поста дает редактировать корректный пост"""
         response = self.authorized_client.get(reverse(
             'posts:post_edit', kwargs={'post_id': self.posts[0].pk}))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         cur_post = response.context['post']
         self.assertEqual(cur_post, self.posts[0])
 
@@ -179,6 +189,7 @@ class PostPagesTest(TestCase):
         """Страница поста, показывает корректный пост"""
         response = self.authorized_client.get(reverse(
             'posts:post_detail', kwargs={'post_id': self.posts[0].pk}))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         cur_post = response.context['post']
         self.assertEqual(cur_post, self.posts[0])
 
@@ -186,4 +197,5 @@ class PostPagesTest(TestCase):
         response = self.authorized_client.get(reverse(
             'posts:group_list', kwargs={'slug': self.group_no_posts.slug}
         ))
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertNotIn(self.posts[0], response.context.get('page_obj'))
