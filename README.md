@@ -1,3 +1,5 @@
 # hw04_tests
 
-[![CI](https://github.com/yandex-praktikum/hw04_tests/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/yandex-praktikum/hw04_tests/actions/workflows/python-app.yml)
+Репозиторий с тестами
+Здесь проект YaTube на одной из начальных стадий разработки покрыт тестами
+Основной репозиторий проекта доступен по ссылке https://github.com/Drvmnekta/YaTube
